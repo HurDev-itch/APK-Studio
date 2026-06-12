@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  /* VS Code Dark Modern Palette */
+  --color-ide-bg: #1e1e1e;
+  --color-ide-surface: #252526;
+  --color-ide-panel: #181818;
+  --color-ide-accent: #007acc;
+  --color-ide-accent-hover: #005f9e;
+  --color-ide-text: #cccccc;
+  --color-ide-text-bright: #ffffff;
+  --color-ide-text-muted: #858585;
+  --color-ide-border: #2b2b2b;
+  --color-ide-hover: #2a2d2e;
+  --color-ide-active: #37373d;
+}
+
+@layer base {
+  body {
+    @apply bg-ide-bg text-ide-text m-0 p-0 overflow-hidden font-sans;
+  }
+}
+
+/* Custom scrollbar for modern feel */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-[#424242];
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-[#4f4f4f];
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
