@@ -150,6 +150,15 @@ Features:
 * Linux releases
 * macOS releases
 
+### Phase 7 – Core Workflow
+
+* APK import wizard
+* Build pipeline
+* Signing manager
+* Device manager
+* Logcat
+* APK analyzer
+
 ---
 
 ## Supported Platforms
@@ -162,17 +171,21 @@ Features:
 
 ## Project Status
 
-🚧 Under active development.
+APK Studio is actively developed and publicly available.
 
-APK Studio is currently in its early development phase. Features and architecture may evolve over time.
+The project is open source and the source code can be downloaded directly from this repository.
+
+New features, improvements, and bug fixes are continuously added as APK Studio evolves toward a complete Android APK development and reverse-engineering environment.
+
+While some features are still under development, the project is fully public and community contributions, bug reports, and suggestions are welcome.
 
 ---
 
 ## Contributing
 
-Contributions, bug reports, feature requests, and discussions are welcome.
+Contributions, bug reports, and feature requests are welcome.
 
-Please open an Issue or Pull Request on GitHub.
+Feel free to open an Issue or submit a Pull Request.
 
 ---
 
@@ -184,7 +197,9 @@ If you discover a security vulnerability, please report it privately before crea
 
 ## License
 
-This project is licensed under the terms specified in the LICENSE file.
+APK Studio is open source.
+
+See the LICENSE file for more information.
 
 ---
 
