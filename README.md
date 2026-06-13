@@ -93,7 +93,7 @@ Features:
 
 | Component         | Technology        |
 | ----------------- | ----------------- |
-| Node.js Version   | 11.6.2            |
+| npm Version       | 11.6.2            |
 | Desktop Framework | Electron          |
 | Frontend          | React             |
 | Language          | TypeScript        |
