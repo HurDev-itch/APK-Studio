@@ -79,8 +79,14 @@ export class ApktoolManager {
                 return reject(new Error('APKTool is not installed. Please download toolchains first.'));
             }
 
-            eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[1;36m━━━ Building APK ━━━\x1b[0m\r\n` });
-            eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\x1b[90m$ java -jar apktool.jar b "${path.basename(projectDir)}" -o "${path.basename(outputApk)}"\x1b[0m\r\n\r\n` });
+            const publishBuildEvent = (level: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS', message: string) => {
+                eventBus.publish({ 
+                    type: 'BUILD_OUTPUT', 
+                    payload: { timestamp: Date.now(), level, message }
+                });
+            };
+
+            publishBuildEvent('INFO', `$ java -jar apktool.jar b "${path.basename(projectDir)}" -o "${path.basename(outputApk)}"`);
 
             const args = ['-jar', apktoolPath, 'b', projectDir, '-o', outputApk];
             const child = spawn(javaPath, args, { cwd: path.dirname(projectDir) });
@@ -89,7 +95,7 @@ export class ApktoolManager {
                 const lines = data.toString().split('\n');
                 for (const line of lines) {
                     if (line.trim()) {
-                        eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `${line.trim()}\r\n` });
+                        publishBuildEvent('INFO', line.trim());
                     }
                 }
             });
@@ -98,23 +104,20 @@ export class ApktoolManager {
                 const lines = data.toString().split('\n');
                 for (const line of lines) {
                     if (line.trim()) {
-                        eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\x1b[31m${line.trim()}\x1b[0m\r\n` });
+                        publishBuildEvent('WARNING', line.trim());
                     }
                 }
             });
 
             child.on('close', (code) => {
                 if (code === 0) {
-                    eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[32m✓ Build finished successfully.\x1b[0m\r\n` });
                     resolve(true);
                 } else {
-                    eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[31m✗ Build failed with exit code ${code}.\x1b[0m\r\n` });
                     reject(new Error(`Build failed with code ${code}`));
                 }
             });
 
             child.on('error', (err) => {
-                eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\x1b[31mError launching apktool: ${err.message}\x1b[0m\r\n` });
                 reject(err);
             });
         });

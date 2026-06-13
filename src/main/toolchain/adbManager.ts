@@ -23,7 +23,7 @@ export class AdbManager {
             return this.getDevices();
         });
 
-        commandBus.register('adb.install', async (args: { deviceId: string, apkPath: string }) => {
+        commandBus.register('adb.install', async (args: { deviceId?: string, apkPath: string }) => {
             await this.installApk(args.deviceId, args.apkPath);
             return { success: true };
         });
@@ -78,12 +78,21 @@ export class AdbManager {
         });
     }
 
-    public installApk(deviceId: string, apkPath: string): Promise<boolean> {
+    public installApk(deviceId: string | undefined, apkPath: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
             const adbPath = toolchainManager.getAdbPath();
-            eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\x1b[36m$ adb -s ${deviceId} install -r "${path.basename(apkPath)}"\x1b[0m\r\n` });
+            
+            const args = [];
+            if (deviceId) {
+                args.push('-s', deviceId);
+                eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\x1b[36m$ adb -s ${deviceId} install -r "${path.basename(apkPath)}"\x1b[0m\r\n` });
+            } else {
+                eventBus.publish({ type: 'TERMINAL_OUTPUT', payload: `\x1b[36m$ adb install -r "${path.basename(apkPath)}"\x1b[0m\r\n` });
+            }
+            
+            args.push('install', '-r', apkPath);
 
-            const child = spawn(adbPath, ['-s', deviceId, 'install', '-r', apkPath]);
+            const child = spawn(adbPath, args);
 
             child.stdout.on('data', (data) => {
                 const lines = data.toString().split('\n');

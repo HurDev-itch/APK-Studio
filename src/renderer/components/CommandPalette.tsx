@@ -67,7 +67,7 @@ export const CommandPalette: React.FC = () => {
 
     const buildApk = () => {
         if (!workspaceRoot) return;
-        setBottomPanelState(true, 'terminal');
+        setBottomPanelState(true, 'Terminal');
         window.electronAPI.executeCommand('build.run', {
             workspacePath: workspaceRoot,
             outputApkPath: `${workspaceRoot}/dist/app_release.apk`
@@ -91,7 +91,7 @@ export const CommandPalette: React.FC = () => {
             if (res.success && res.data) {
                 const outDirRes = await window.electronAPI.executeCommand('workspace.selectDirectory');
                 if (outDirRes.success && outDirRes.data) {
-                    setBottomPanelState(true, 'terminal');
+                    setBottomPanelState(true, 'Terminal');
                     const decompileRes = await window.electronAPI.executeCommand('apktool.decompile', {
                         apkPath: res.data, outputDir: outDirRes.data
                     });
@@ -116,7 +116,7 @@ export const CommandPalette: React.FC = () => {
         // View Commands
         { id: 'view.explorer', title: 'View: Toggle Explorer', icon: <Layout size={16} />, action: () => setActiveSidebarTab('explorer') },
         { id: 'view.search', title: 'View: Toggle Search', shortcut: 'Ctrl+Shift+F', icon: <Search size={16} />, action: () => setActiveSidebarTab('search') },
-        { id: 'view.terminal', title: 'View: Toggle Terminal', shortcut: 'Ctrl+`', icon: <TerminalSquare size={16} />, action: () => setBottomPanelState(!bottomPanelOpen, 'terminal') },
+        { id: 'view.terminal', title: 'View: Toggle Terminal', shortcut: 'Ctrl+`', icon: <TerminalSquare size={16} />, action: () => setBottomPanelState(!bottomPanelOpen, 'Terminal') },
         { id: 'view.aiPanel', title: 'View: Toggle AI Panel', icon: <Bot size={16} />, action: toggleAIPanel },
         
         // Run Commands
@@ -163,7 +163,7 @@ export const CommandPalette: React.FC = () => {
                 buildApk();
             } else if (e.ctrlKey && e.key === '`') {
                 e.preventDefault();
-                useWorkspaceStore.getState().setBottomPanelState(!useWorkspaceStore.getState().bottomPanelOpen, 'terminal');
+                useWorkspaceStore.getState().setBottomPanelState(!useWorkspaceStore.getState().bottomPanelOpen, 'Terminal');
             }
             // Note: Ctrl+F and Ctrl+H are usually handled by Monaco itself or the DOM automatically
         };

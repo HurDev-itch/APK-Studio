@@ -1,17 +1,32 @@
 import { app, BrowserWindow } from 'electron';
 import './core/envManager';
 import { diagnosticsManager } from './core/diagnosticsManager';
+import * as path from "path";
+
+if (process.env.PORTABLE_EXECUTABLE_DIR) {
+    const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
+
+    app.setPath(
+        "userData",
+        path.join(portableDir, "data")
+    );
+
+    app.setPath(
+        "sessionData",
+        path.join(portableDir, "cache")
+    );
+
+    app.setPath(
+        "logs",
+        path.join(portableDir, "logs")
+    );
+}
 
 // Redirect all console output to the internal logger to avoid terminal windows in production
-const originalConsoleLog = console.log;
-const originalConsoleWarn = console.warn;
-const originalConsoleError = console.error;
-
 console.log = (...args) => diagnosticsManager.log('INFO', args.join(' '));
 console.warn = (...args) => diagnosticsManager.log('WARN', args.join(' '));
 console.error = (...args) => diagnosticsManager.log('ERROR', args.join(' '));
 
-import * as path from 'path';
 import { commandBus } from './core/commandBus';
 import './toolchain/toolchainManager';
 import './toolchain/apktoolManager';
@@ -40,6 +55,7 @@ const createWindow = () => {
     height: 800,
     frame: false,
     titleBarStyle: 'hidden',
+    icon: path.join(__dirname, '../../build/icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -51,7 +67,9 @@ const createWindow = () => {
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    mainWindow.loadFile(
+      path.join(__dirname, '../dist/index.html')
+    );
   }
 
   // Open the DevTools in dev mode
@@ -60,6 +78,18 @@ const createWindow = () => {
   }
 
   diagnosticsManager.log('INFO', 'Main window created');
+
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+  if (input.type === 'keyDown' && input.key === 'F12') {
+    if (mainWindow.webContents.isDevToolsOpened()) {
+      mainWindow.webContents.closeDevTools();
+    } else {
+      mainWindow.webContents.openDevTools({
+        mode: 'detach' // ou 'right', 'bottom', etc.
+      });
+    }
+  }
+});
 };
 
 // Register Window Controls IPC

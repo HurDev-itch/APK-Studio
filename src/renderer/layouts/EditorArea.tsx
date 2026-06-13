@@ -6,6 +6,8 @@ import { ManifestVisualEditor } from '../editors/ManifestVisualEditor';
 import { ResourcesVisualEditor } from '../editors/ResourcesVisualEditor';
 import { SqliteEditor } from '../editors/SqliteEditor';
 import { SharedPreferencesEditor } from '../editors/SharedPreferencesEditor';
+import { LayoutVisualEditor } from '../editors/LayoutVisualEditor';
+import { ImageViewer } from '../editors/ImageViewer';
 import { PluginsView } from '../components/PluginsView';
 import { AboutView } from '../components/AboutView';
 import { AnalyzerView } from '../components/AnalyzerView';
@@ -23,8 +25,8 @@ export const EditorArea = () => {
     // Auto-save debounce timer
     const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // View Mode (Code vs Visual)
-    const [viewMode, setViewMode] = useState<'code' | 'visual'>('visual');
+    // View Mode (Code vs Visual vs Split)
+    const [viewMode, setViewMode] = useState<'code' | 'split' | 'visual'>('visual');
 
     const handleContentChange = (newContent: string) => {
         if (!activeTab) return;
@@ -90,7 +92,7 @@ export const EditorArea = () => {
                         ))}
                     </div>
                     <div className="flex items-center gap-3">
-                        {(activeTabData.name === 'AndroidManifest.xml' || activeTabData.path.includes('shared_prefs') || (activeTabData.path.includes('res/values/') || activeTabData.path.includes('res\\values\\')) && activeTabData.name.endsWith('.xml')) && (
+                        {(activeTabData.name === 'AndroidManifest.xml' || activeTabData.path.includes('shared_prefs') || (activeTabData.path.includes('res/values/') || activeTabData.path.includes('res\\values\\')) && activeTabData.name.endsWith('.xml') || (activeTabData.path.includes('res/layout/') || activeTabData.path.includes('res\\layout\\')) && activeTabData.name.endsWith('.xml')) && (
                             <div className="flex bg-[#1e1e1e] border border-[#3e3e42] rounded overflow-hidden mr-2">
                                 <button 
                                     className={`px-3 py-1 text-[11px] font-medium transition-colors ${viewMode === 'code' ? 'bg-ide-accent text-white' : 'text-ide-text-muted hover:text-white'}`}
@@ -98,11 +100,19 @@ export const EditorArea = () => {
                                 >
                                     Code
                                 </button>
+                                {((activeTabData.path.includes('res/layout/') || activeTabData.path.includes('res\\layout\\')) && activeTabData.name.endsWith('.xml')) && (
+                                    <button 
+                                        className={`px-3 py-1 text-[11px] font-medium transition-colors ${viewMode === 'split' ? 'bg-ide-accent text-white border-l border-r border-[#3e3e42]' : 'text-ide-text-muted hover:text-white border-l border-r border-[#3e3e42]'}`}
+                                        onClick={() => setViewMode('split')}
+                                    >
+                                        Split
+                                    </button>
+                                )}
                                 <button 
                                     className={`px-3 py-1 text-[11px] font-medium transition-colors ${viewMode === 'visual' ? 'bg-ide-accent text-white' : 'text-ide-text-muted hover:text-white'}`}
                                     onClick={() => setViewMode('visual')}
                                 >
-                                    Visual
+                                    Design
                                 </button>
                             </div>
                         )}
@@ -139,6 +149,27 @@ export const EditorArea = () => {
                                 content={activeTabData.content}
                                 onChange={handleContentChange}
                             />
+                        ) : activeTabData.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? (
+                            <ImageViewer path={activeTabData.path} />
+                        ) : (activeTabData.path.includes('res/layout/') || activeTabData.path.includes('res\\layout\\')) && activeTabData.name.endsWith('.xml') && viewMode !== 'code' ? (
+                            <div className="h-full w-full flex">
+                                {viewMode === 'split' && (
+                                    <div className="flex-1 border-r border-[#3e3e42]">
+                                        <CodeEditor 
+                                            path={activeTabData.path}
+                                            content={activeTabData.content}
+                                            onChange={handleContentChange}
+                                        />
+                                    </div>
+                                )}
+                                <div className={viewMode === 'split' ? 'flex-1' : 'w-full h-full'}>
+                                    <LayoutVisualEditor
+                                        content={activeTabData.content}
+                                        onChange={handleContentChange}
+                                        viewMode={viewMode}
+                                    />
+                                </div>
+                            </div>
                         ) : (
                             <CodeEditor 
                                 path={activeTabData.path}

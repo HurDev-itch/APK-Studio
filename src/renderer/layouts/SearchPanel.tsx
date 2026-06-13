@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronRight, FileCode, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 interface SearchMatch {
@@ -51,7 +51,7 @@ export const SearchPanel: React.FC = () => {
         setExpandedFiles(prev => ({ ...prev, [file]: !prev[file] }));
     };
 
-    const handleResultClick = async (file: string, line: number) => {
+    const handleResultClick = async (file: string, _line: number) => {
         if (!workspaceRoot) return;
         try {
             const absolutePath = `${workspaceRoot}/${file}`;

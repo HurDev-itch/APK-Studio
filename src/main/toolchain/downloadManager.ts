@@ -60,8 +60,7 @@ export class DownloadManager {
                     responseType: 'stream',
                     timeout: 30000,
                 });
-
-                const totalLength = parseInt(response.headers['content-length'] || '0', 10);
+                const totalLength = parseInt(String(response.headers['content-length'] || '0'), 10);
                 let downloaded = 0;
 
                 const writer = fs.createWriteStream(options.destFile);

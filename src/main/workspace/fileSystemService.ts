@@ -1,11 +1,12 @@
 import * as fs from 'fs/promises';
-import { existsSync, createReadStream } from 'fs';
+import { createReadStream } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import chokidar from 'chokidar';
 import type { FSWatcher } from 'chokidar';
 import { commandBus } from '../core/commandBus';
 import { eventBus } from '../core/eventBus';
+import { shell } from 'electron';
 
 export class FileSystemService {
     private watcher: FSWatcher | null = null;
@@ -32,6 +33,12 @@ export class FileSystemService {
             return content;
         });
 
+        commandBus.register('fs.readFileBase64', async (filePath: string) => {
+            this.enforceSecurity(filePath);
+            const content = await fs.readFile(filePath);
+            return content.toString('base64');
+        });
+
         commandBus.register('fs.writeFile', async ({ filePath, content, isAutoSave }: { filePath: string, content: string, isAutoSave?: boolean }) => {
             this.enforceSecurity(filePath);
             
@@ -46,6 +53,38 @@ export class FileSystemService {
         commandBus.register('fs.createFile', async ({ parentDir, name, content }: { parentDir: string, name: string, content: string }) => {
             const targetPath = path.join(parentDir, name);
             await fs.writeFile(targetPath, content, 'utf-8');
+            return true;
+        });
+
+        commandBus.register('fs.createDirectory', async (dirPath: string) => {
+            this.enforceSecurity(dirPath);
+            await fs.mkdir(dirPath, { recursive: true });
+            return true;
+        });
+
+        commandBus.register('fs.rename', async ({ oldPath, newPath }: { oldPath: string, newPath: string }) => {
+            this.enforceSecurity(oldPath);
+            this.enforceSecurity(newPath);
+            await fs.rename(oldPath, newPath);
+            return true;
+        });
+
+        commandBus.register('fs.delete', async (targetPath: string) => {
+            this.enforceSecurity(targetPath);
+            await fs.rm(targetPath, { recursive: true, force: true });
+            return true;
+        });
+
+        commandBus.register('fs.duplicate', async ({ sourcePath, targetPath }: { sourcePath: string, targetPath: string }) => {
+            this.enforceSecurity(sourcePath);
+            this.enforceSecurity(targetPath);
+            await fs.cp(sourcePath, targetPath, { recursive: true });
+            return true;
+        });
+
+        commandBus.register('fs.showInExplorer', async (targetPath: string) => {
+            // We don't enforce security here because it just opens the native file explorer, but we could
+            shell.showItemInFolder(targetPath);
             return true;
         });
 

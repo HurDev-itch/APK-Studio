@@ -1,11 +1,13 @@
 {
   "name": "apk-studio",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "2.0.0",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -16,24 +18,29 @@
     "directories": {
       "output": "release"
     },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "HurDev-itch",
+        "repo": "APK-Studio"
+      }
+    ],
     "win": {
       "target": [
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.ico",
-      "publish": [
-        "github"
-      ],
-      "certificateSubjectName": "APK Studio (Optional EV Signing)"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true
     },
     "portable": {
-      "requestExecutionLevel": "user"
+      "requestExecutionLevel": "user",
+      "artifactName": "APK Studio Portable ${version}.exe"
     },
     "asarUnpack": [
       "node_modules/better-sqlite3"
@@ -45,6 +52,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@mui/material": "^9.1.1",
     "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
     "adm-zip": "^0.5.17",
     "axios": "^1.17.0",
     "better-sqlite3": "^12.10.0",
@@ -64,6 +72,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.0",
+    "@types/adm-zip": "^0.5.8",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.14",

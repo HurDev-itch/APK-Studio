@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Smartphone, ShieldAlert, Cpu, Layers } from 'lucide-react';
+import { Package, ShieldAlert, Cpu, Layers } from 'lucide-react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 export const AnalyzerView: React.FC = () => {

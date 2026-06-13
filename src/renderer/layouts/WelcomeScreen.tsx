@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileCode, FolderOpen, Plus, File, Settings, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { FileCode, FolderOpen, File, Settings, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 export const WelcomeScreen: React.FC = () => {
     const { t } = useTranslation('common');
-    const { setWorkspaceRoot, setBottomPanelState } = useWorkspaceStore();
+    const { setWorkspaceRoot, setBottomPanelState, loadState } = useWorkspaceStore();
     const [toolchainStatus, setToolchainStatus] = useState<any>(null);
     const [downloading, setDownloading] = useState(false);
     const [decompiling, setDecompiling] = useState(false);
@@ -33,7 +33,7 @@ export const WelcomeScreen: React.FC = () => {
 
     const downloadToolchains = async () => {
         setDownloading(true);
-        setBottomPanelState(true, 'terminal');
+        setBottomPanelState(true, 'Terminal');
         await window.electronAPI.executeCommand('toolchain.downloadAll');
         await checkToolchains();
         setDownloading(false);
@@ -53,7 +53,7 @@ export const WelcomeScreen: React.FC = () => {
         const outputDir: string = outDirRes.data;
 
         setDecompiling(true);
-        setBottomPanelState(true, 'terminal');
+        setBottomPanelState(true, 'Terminal');
 
         try {
             const res = await window.electronAPI.executeCommand('apktool.decompile', {
@@ -73,6 +73,7 @@ export const WelcomeScreen: React.FC = () => {
                 });
 
                 if (createRes.success && createRes.data?.metadata) {
+                    if (createRes.data.state) loadState(createRes.data.state);
                     // Set workspace root so the IDE switches from WelcomeScreen to editor
                     setWorkspaceRoot(createRes.data.metadata.path);
                 }
@@ -90,6 +91,7 @@ export const WelcomeScreen: React.FC = () => {
 
         const openRes = await window.electronAPI.executeCommand('workspace.openByPath', res.data);
         if (openRes.success && openRes.data?.metadata) {
+            if (openRes.data.state) loadState(openRes.data.state);
             setWorkspaceRoot(openRes.data.metadata.path);
         }
     };
@@ -124,7 +126,7 @@ export const WelcomeScreen: React.FC = () => {
         const outputDir: string = outDirRes.data;
 
         setDecompiling(true);
-        setBottomPanelState(true, 'terminal');
+        setBottomPanelState(true, 'Terminal');
 
         try {
             const res = await window.electronAPI.executeCommand('apktool.decompile', {
@@ -143,6 +145,7 @@ export const WelcomeScreen: React.FC = () => {
                 });
 
                 if (createRes.success && createRes.data?.metadata) {
+                    if (createRes.data.state) loadState(createRes.data.state);
                     setWorkspaceRoot(createRes.data.metadata.path);
                 }
             }
@@ -156,6 +159,7 @@ export const WelcomeScreen: React.FC = () => {
     const openWorkspace = async (ws: any) => {
         const res = await window.electronAPI.executeCommand('workspace.open', ws.id);
         if (res.success && res.data?.metadata) {
+            if (res.data.state) loadState(res.data.state);
             setWorkspaceRoot(res.data.metadata.path);
         }
     };

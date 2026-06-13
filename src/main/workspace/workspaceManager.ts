@@ -1,7 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { dialog, BrowserWindow } from 'electron';
-import { Worker } from 'worker_threads';
 import { simpleGit } from 'simple-git';
 import type { SimpleGit } from 'simple-git';
 import { commandBus } from '../core/commandBus';
@@ -11,7 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class WorkspaceManager {
     private activeWorkspace: any = null;
-    private searchIndexerWorker: Worker | null = null;
 
     constructor() {
         this.registerCommands();
@@ -63,6 +61,31 @@ export class WorkspaceManager {
             }
             return null;
         });
+
+        commandBus.register('workspace.saveState', async (stateData: any) => {
+            if (!this.activeWorkspace) return false;
+            const db = dbService.getDb();
+            const { openedTabs, activeTab, treeExpansion, bottomPanelHeight, bottomPanelTab } = stateData;
+            
+            db.prepare(`
+                INSERT INTO workspace_state (workspace_id, opened_tabs, active_tab, tree_expansion, bottom_panel_height, bottom_panel_tab)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(workspace_id) DO UPDATE SET
+                    opened_tabs = excluded.opened_tabs,
+                    active_tab = excluded.active_tab,
+                    tree_expansion = excluded.tree_expansion,
+                    bottom_panel_height = excluded.bottom_panel_height,
+                    bottom_panel_tab = excluded.bottom_panel_tab
+            `).run(
+                this.activeWorkspace.id,
+                JSON.stringify(openedTabs || []),
+                activeTab || null,
+                JSON.stringify(treeExpansion || []),
+                bottomPanelHeight || 200,
+                bottomPanelTab || 'Terminal'
+            );
+            return true;
+        });
     }
 
     private async createWorkspace(targetDir: string, projectName: string, initGit: boolean) {
@@ -110,7 +133,7 @@ export class WorkspaceManager {
 
         return {
             metadata: workspace,
-            state: state || { opened_tabs: '[]', active_tab: null, tree_expansion: '[]' }
+            state: state || { opened_tabs: '[]', active_tab: null, tree_expansion: '[]', bottom_panel_height: 200, bottom_panel_tab: 'Terminal' }
         };
     }
 

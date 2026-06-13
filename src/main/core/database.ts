@@ -52,6 +52,8 @@ class DatabaseService {
                 opened_tabs TEXT,
                 active_tab TEXT,
                 tree_expansion TEXT,
+                bottom_panel_height INTEGER DEFAULT 200,
+                bottom_panel_tab TEXT DEFAULT 'Terminal',
                 FOREIGN KEY(workspace_id) REFERENCES recent_workspaces(id) ON DELETE CASCADE
             );
             
@@ -64,6 +66,19 @@ class DatabaseService {
         `;
         
         this.db.exec(setupQuery);
+
+        // Migrations for existing databases
+        try {
+            this.db.exec("ALTER TABLE workspace_state ADD COLUMN bottom_panel_height INTEGER DEFAULT 200");
+        } catch (e) {
+            // Column might already exist
+        }
+
+        try {
+            this.db.exec("ALTER TABLE workspace_state ADD COLUMN bottom_panel_tab TEXT DEFAULT 'Terminal'");
+        } catch (e) {
+            // Column might already exist
+        }
     }
 
     public getDb(): Database.Database {

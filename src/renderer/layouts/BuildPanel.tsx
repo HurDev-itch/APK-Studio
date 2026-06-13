@@ -33,7 +33,7 @@ export const BuildPanel: React.FC = () => {
     const handleBuild = async () => {
         if (!workspaceRoot) return;
         setBuilding(true);
-        setBottomPanelState(true, 'terminal');
+        setBottomPanelState(true, 'Terminal');
         
         const outputApkPath = `${workspaceRoot}/dist/app_release.apk`;
         
@@ -52,10 +52,10 @@ export const BuildPanel: React.FC = () => {
     const handleInstall = async () => {
         if (!workspaceRoot || !selectedDevice) return;
         setInstalling(true);
-        setBottomPanelState(true, 'terminal');
+        setBottomPanelState(true, 'Terminal');
         
         // Find the apk in dist
-        const res = await window.electronAPI.executeCommand('adb.install', {
+        await window.electronAPI.executeCommand('adb.install', {
             deviceId: selectedDevice,
             apkPath: `${workspaceRoot}/dist/app_release.apk`
         });

@@ -43,7 +43,7 @@ export const MenuBar: React.FC = () => {
     if (!res.success || !res.data) return;
     const outDirRes = await window.electronAPI.executeCommand('workspace.selectDirectory');
     if (!outDirRes.success || !outDirRes.data) return;
-    setBottomPanelState(true, 'terminal');
+    setBottomPanelState(true, 'Terminal');
     const decompileRes = await window.electronAPI.executeCommand('apktool.decompile', {
       apkPath: res.data,
       outputDir: outDirRes.data
@@ -101,11 +101,35 @@ export const MenuBar: React.FC = () => {
 
   const buildApk = () => {
     if (!workspaceRoot) return;
-    setBottomPanelState(true, 'terminal');
+    setBottomPanelState(true, 'Build');
     window.electronAPI.executeCommand('build.run', {
       workspacePath: workspaceRoot,
       outputApkPath: `${workspaceRoot}/dist/app_release.apk`
     });
+  };
+
+  const buildAndInstall = async () => {
+    if (!workspaceRoot) return;
+    setBottomPanelState(true, 'Build');
+    try {
+      const response = await window.electronAPI.executeCommand('build.run', {
+        workspacePath: workspaceRoot,
+        outputApkPath: `${workspaceRoot}/dist/app_release.apk`
+      });
+      if (response.success && response.data) {
+        const distDir = response.data;
+        // Find the signed APK
+        const projectName = workspaceRoot.split(/[\\/]/).pop() || 'app';
+        const signedApkPath = `${distDir}/${projectName}.apk`;
+        
+        // Wait 1s and then trigger ADB install via TERMINAL_OUTPUT or executeCommand
+        window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[36m$ adb install -r "${signedApkPath}"\x1b[0m\r\n` });
+        window.electronAPI.executeCommand('adb.install', { apkPath: signedApkPath });
+        setBottomPanelState(true, 'Terminal');
+      }
+    } catch (e) {
+      // Build failed, handled by buildManager
+    }
   };
 
   const openTab = (path: string, name: string) => {
@@ -162,7 +186,7 @@ export const MenuBar: React.FC = () => {
       items: [
         { label: 'Toggle Explorer', action: () => setActiveSidebarTab('explorer') },
         { label: 'Toggle Search', shortcut: 'Ctrl+Shift+F', action: () => setActiveSidebarTab('search') },
-        { label: 'Toggle Terminal', shortcut: 'Ctrl+`', action: () => setBottomPanelState(!bottomPanelOpen, 'terminal') },
+        { label: 'Toggle Terminal', shortcut: 'Ctrl+`', action: () => setBottomPanelState(!bottomPanelOpen, 'Terminal') },
         { label: 'Toggle AI Panel', action: toggleAIPanel },
         { separator: true, label: '' },
         { label: 'Command Palette...', shortcut: 'Ctrl+Shift+P', action: () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, shiftKey: true })) }
@@ -172,7 +196,8 @@ export const MenuBar: React.FC = () => {
       id: 'run', label: 'Run',
       items: [
         { label: 'Build APK', shortcut: 'Ctrl+B', action: buildApk },
-        { label: 'Build and Install' },
+        { label: 'Build & Sign', action: buildApk },
+        { label: 'Build & Install', action: buildAndInstall },
         { label: 'Rebuild' },
         { label: 'Start Logcat' }
       ]
