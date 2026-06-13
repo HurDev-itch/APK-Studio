@@ -47,7 +47,7 @@ Built with Electron, React, TypeScript, and Monaco Editor, APK Studio combines t
 * Manifest editor
 * Theme editor
 * Resource editor
-* Layout editor *(planned)*
+* Layout editor
 
 ### Security Analysis
 
