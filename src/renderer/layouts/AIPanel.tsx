@@ -44,12 +44,28 @@ export const AIPanel: React.FC<AIPanelProps> = ({ onClose }) => {
         if (!input.trim() || loading) return;
 
         const newMessages: Message[] = [...messages, { role: 'user', content: input }];
-        setMessages(newMessages);
+        setMessages([...newMessages, { role: 'assistant', content: '' }]); // Append empty assistant msg for streaming
         setInput('');
         setLoading(true);
 
+        const streamId = Date.now().toString();
+
+        const unsubscribe = window.electronAPI.onEvent((event) => {
+            if (event.type === `AI_STREAM_${streamId}`) {
+                setMessages(prev => {
+                    const last = prev[prev.length - 1];
+                    if (last && last.role === 'assistant') {
+                        return [
+                            ...prev.slice(0, -1),
+                            { ...last, content: last.content + event.payload }
+                        ];
+                    }
+                    return prev;
+                });
+            }
+        });
+
         try {
-            // Build Context
             const context = {
                 activeFilePath: activeTab || undefined,
                 workspaceRoot: workspaceRoot || undefined
@@ -57,17 +73,23 @@ export const AIPanel: React.FC<AIPanelProps> = ({ onClose }) => {
 
             const res = await window.electronAPI.executeCommand('ai.chat', {
                 messages: newMessages,
-                context
+                context,
+                streamId
             });
 
-            if (res.success) {
-                setMessages(prev => [...prev, { role: 'assistant', content: res.data.content }]);
-            } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: `**Error:** ${res.error}` }]);
+            if (!res.success) {
+                setMessages(prev => [
+                    ...prev.slice(0, -1),
+                    { role: 'assistant', content: `**Error:** ${res.error}` }
+                ]);
             }
         } catch (e: any) {
-            setMessages(prev => [...prev, { role: 'assistant', content: `**Error:** ${e.message}` }]);
+            setMessages(prev => [
+                ...prev.slice(0, -1),
+                { role: 'assistant', content: `**Error:** ${e.message}` }
+            ]);
         } finally {
+            unsubscribe();
             setLoading(false);
         }
     };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { DeviceSetupWizard } from '../components/DeviceSetupWizard';
 
 interface MenuItem {
   label: string;
@@ -26,6 +27,7 @@ export const MenuBar: React.FC = () => {
   } = useWorkspaceStore();
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,7 +97,6 @@ export const MenuBar: React.FC = () => {
   };
 
   const closeWorkspace = () => {
-    // Basic implementation: set root to null
     useWorkspaceStore.getState().setWorkspaceRoot(null as any);
   };
 
@@ -118,17 +119,71 @@ export const MenuBar: React.FC = () => {
       });
       if (response.success && response.data) {
         const distDir = response.data;
-        // Find the signed APK
         const projectName = workspaceRoot.split(/[\\/]/).pop() || 'app';
         const signedApkPath = `${distDir}/${projectName}.apk`;
         
-        // Wait 1s and then trigger ADB install via TERMINAL_OUTPUT or executeCommand
-        window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[36m$ adb install -r "${signedApkPath}"\x1b[0m\r\n` });
-        window.electronAPI.executeCommand('adb.install', { apkPath: signedApkPath });
+        const devicesRes = await window.electronAPI.executeCommand('adb.devices');
+        const devices = Array.isArray(devicesRes?.data) ? devicesRes.data : [];
+        if (devices.length === 0) {
+            window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[33mNo device found. Launching Setup Wizard...\x1b[0m\r\n` });
+            setShowWizard(true);
+            return;
+        }
+        const deviceId = devices[0].id;
+        
+        window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[36m$ adb -s ${deviceId} install -r "${signedApkPath}"\x1b[0m\r\n` });
+        window.electronAPI.executeCommand('adb.install', { deviceId, apkPath: signedApkPath });
         setBottomPanelState(true, 'Terminal');
       }
     } catch (e) {
-      // Build failed, handled by buildManager
+      // Build failed
+    }
+  };
+
+  const buildInstallAndLaunch = async () => {
+    if (!workspaceRoot) return;
+    setBottomPanelState(true, 'Build');
+    try {
+      const response = await window.electronAPI.executeCommand('build.run', {
+        workspacePath: workspaceRoot,
+        outputApkPath: `${workspaceRoot}/dist/app_release.apk`
+      });
+      if (response.success && response.data) {
+        const distDir = response.data;
+        const projectName = workspaceRoot.split(/[\\/]/).pop() || 'app';
+        const signedApkPath = `${distDir}/${projectName}.apk`;
+        
+        const devicesRes = await window.electronAPI.executeCommand('adb.devices');
+        const devices = Array.isArray(devicesRes?.data) ? devicesRes.data : [];
+        const emu = devices.find((d: any) => d.id.startsWith('emulator-'));
+        const deviceId = emu ? emu.id : (devices.length > 0 ? devices[0].id : undefined);
+
+        if (!deviceId) {
+            window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[33mNo running emulator or device found. Launching Quick Setup...\x1b[0m\r\n` });
+            setBottomPanelState(true, 'Terminal');
+            setShowWizard(true);
+            return;
+        }
+
+        window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\r\n\x1b[36m$ adb -s ${deviceId} install -r "${signedApkPath}"\x1b[0m\r\n` });
+        await window.electronAPI.executeCommand('adb.install', { deviceId, apkPath: signedApkPath });
+        
+        try {
+            const manifestContent = await window.electronAPI.executeCommand('fs.readFile', `${workspaceRoot}/AndroidManifest.xml`);
+            const pkgMatch = manifestContent?.data?.match(/package="([^"]+)"/);
+            if (pkgMatch) {
+                const pkg = pkgMatch[1];
+                window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\x1b[36m$ adb -s ${deviceId} shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1\x1b[0m\r\n` });
+                await window.electronAPI.executeCommand('adb.shell', { deviceId, command: `monkey -p ${pkg} -c android.intent.category.LAUNCHER 1` });
+            }
+        } catch (err) {
+            window.electronAPI.publishEvent({ type: 'TERMINAL_OUTPUT', payload: `\x1b[33mWarning: Failed to auto-launch app.\x1b[0m\r\n` });
+        }
+
+        setBottomPanelState(true, 'Terminal');
+      }
+    } catch (e) {
+      // Build failed
     }
   };
 
@@ -198,6 +253,7 @@ export const MenuBar: React.FC = () => {
         { label: 'Build APK', shortcut: 'Ctrl+B', action: buildApk },
         { label: 'Build & Sign', action: buildApk },
         { label: 'Build & Install', action: buildAndInstall },
+        { label: 'Build, Install & Launch', action: buildInstallAndLaunch },
         { label: 'Rebuild' },
         { label: 'Start Logcat' }
       ]
@@ -264,6 +320,16 @@ export const MenuBar: React.FC = () => {
           )}
         </div>
       ))}
+
+      {showWizard && (
+          <DeviceSetupWizard 
+              onClose={() => setShowWizard(false)}
+              onComplete={() => {
+                  setShowWizard(false);
+                  buildAndInstall();
+              }}
+          />
+      )}
     </div>
   );
 };

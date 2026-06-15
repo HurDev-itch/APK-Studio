@@ -1,4 +1,4 @@
-import { FileCode2, Search, GitMerge, Blocks, Settings, CircleUser, Bot, Package } from 'lucide-react';
+import { FileCode2, Search, GitMerge, Blocks, Settings, CircleUser, Bot, Package, Smartphone, HardDriveDownload } from 'lucide-react';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
 export const ActivityBar = () => {
@@ -62,6 +62,20 @@ export const ActivityBar = () => {
                     title="APK Analyzer"
                 >
                     <Package size={24} strokeWidth={1.5} />
+                </div>
+                <div 
+                    className={`w-full flex justify-center cursor-pointer transition-colors border-l-2 ${activeSidebarTab === 'device' ? 'border-ide-accent text-ide-text-bright' : 'border-transparent text-ide-text-muted hover:text-ide-text-bright'}`}
+                    onClick={() => setActiveSidebarTab('device')}
+                    title="Device Simulator"
+                >
+                    <Smartphone size={24} strokeWidth={1.5} />
+                </div>
+                <div 
+                    className={`w-full flex justify-center cursor-pointer transition-colors border-l-2 ${activeSidebarTab === 'sdk' ? 'border-ide-accent text-ide-text-bright' : 'border-transparent text-ide-text-muted hover:text-ide-text-bright'}`}
+                    onClick={() => setActiveSidebarTab('sdk')}
+                    title="SDK Manager"
+                >
+                    <HardDriveDownload size={24} strokeWidth={1.5} />
                 </div>
                 <div 
                     className="w-full flex justify-center border-l-2 border-transparent text-ide-text-muted cursor-pointer hover:text-ide-text-bright transition-colors"

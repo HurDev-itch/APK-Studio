@@ -76,8 +76,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         if (exists) {
             return { activeTab: path };
         }
+        
+        const newTabs = [...state.openedTabs, { path, name, content, isDirty: false }];
+        
+        // LRU Cache: Keep max 20 tabs
+        if (newTabs.length > 20) {
+            const oldestCleanIndex = newTabs.findIndex(t => !t.isDirty && t.path !== path);
+            if (oldestCleanIndex !== -1) {
+                newTabs.splice(oldestCleanIndex, 1);
+            }
+        }
+
         return {
-            openedTabs: [...state.openedTabs, { path, name, content, isDirty: false }],
+            openedTabs: newTabs,
             activeTab: path
         };
     }),

@@ -56,6 +56,77 @@ export class GeminiProvider implements IAIProvider {
         };
     }
 
+    async chatStream(messages: ChatMessage[], onChunk: (chunk: string) => void): Promise<AIResponse> {
+        if (!this.apiKey) {
+            throw new Error("Gemini API Key is not configured.");
+        }
+
+        let systemPrompt = "";
+        const geminiContents = messages.map(msg => {
+            if (msg.role === 'system') {
+                systemPrompt += msg.content + "\n";
+                return null;
+            }
+            return {
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: msg.content }]
+            };
+        }).filter(Boolean) as any[];
+
+        if (systemPrompt && geminiContents.length > 0) {
+            geminiContents[0].parts[0].text = `[System Instruction: ${systemPrompt}]\n\n${geminiContents[0].parts[0].text}`;
+        }
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: geminiContents })
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Gemini API error (${response.status}): ${errBody}`);
+        }
+
+        if (!response.body) throw new Error("No response body");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let fullContent = "";
+
+        // The streaming API returns JSON array chunks like: [ { ... }, { ... } ]
+        // We will just do a simple string parsing for demonstration or use a proper SSE if it was SSE.
+        // Actually Gemini REST returns an array of chunks, but it's JSON. 
+        // We can just extract "text": "..." using regex or naive parsing for now to support streaming.
+        
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunkStr = decoder.decode(value, { stream: true });
+                // Hacky but works for Gemini's weird JSON stream format
+                const matches = chunkStr.match(/"text"\s*:\s*"([^"]+)"/g);
+                if (matches) {
+                    for (const match of matches) {
+                        try {
+                            const textPart = JSON.parse(`{${match}}`).text;
+                            fullContent += textPart;
+                            onChunk(textPart);
+                        } catch(e) {}
+                    }
+                }
+            }
+        } finally {
+            reader.releaseLock();
+        }
+
+        return {
+            content: fullContent,
+            modelUsed: this.model
+        };
+    }
+
     async explainCode(code: string): Promise<string> {
         const res = await this.chat([
             { role: 'system', content: 'You are an expert Android developer. Explain the following code concisely.' },

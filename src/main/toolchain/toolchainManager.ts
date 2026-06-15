@@ -49,6 +49,15 @@ export class ToolchainManager {
         return path.join(this.toolchainsPath, 'adb', 'platform-tools', adbBin);
     }
 
+    public getSdkPath(): string | null {
+        try {
+            const { sdkManager } = require('./sdkManager');
+            return sdkManager.getSdkRoot();
+        } catch {
+            return null;
+        }
+    }
+
     private registerCommands() {
         commandBus.register('toolchain.downloadAll', async () => {
             try {

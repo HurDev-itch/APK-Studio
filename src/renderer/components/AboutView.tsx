@@ -7,7 +7,7 @@ export const AboutView: React.FC = () => {
     
     // Hardcoded for this mockup, normally retrieved from process.versions
     const versions = {
-        app: '1.0.0',
+        app: '3.0.0',
         electron: '33.2.0',
         node: '24.16.0',
         chromium: '130.0.6723.44',

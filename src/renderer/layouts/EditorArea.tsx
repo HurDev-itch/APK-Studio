@@ -28,20 +28,19 @@ export const EditorArea = () => {
     // View Mode (Code vs Visual vs Split)
     const [viewMode, setViewMode] = useState<'code' | 'split' | 'visual'>('visual');
 
-    const handleContentChange = (newContent: string) => {
-        if (!activeTab) return;
-        updateTabContent(activeTab, newContent);
+    const handleContentChange = (path: string, newContent: string) => {
+        updateTabContent(path, newContent);
 
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         
         saveTimerRef.current = setTimeout(async () => {
             try {
                 await window.electronAPI.executeCommand('fs.writeFile', {
-                    filePath: activeTab,
+                    filePath: path,
                     content: newContent,
                     isAutoSave: true
                 });
-                markTabClean(activeTab);
+                markTabClean(path);
             } catch (err) {
                 console.error("Auto-save failed", err);
             }
@@ -124,60 +123,62 @@ export const EditorArea = () => {
 
             {/* Editor Content */}
             <div className="flex-1 overflow-auto relative">
-                {activeTabData ? (
-                    <>
-                        {activeTabData.path === 'About' ? (
-                            <AboutView />
-                        ) : activeTabData.path === 'Plugins' ? (
-                            <PluginsView />
-                        ) : activeTabData.path === 'APKAnalyzer' ? (
-                            <AnalyzerView />
-                        ) : activeTabData.name.endsWith('.db') || activeTabData.name.endsWith('.sqlite') ? (
-                            <SqliteEditor path={activeTabData.path} />
-                        ) : activeTabData.name === 'AndroidManifest.xml' && viewMode === 'visual' ? (
-                            <ManifestVisualEditor 
-                                content={activeTabData.content}
-                                onChange={handleContentChange}
-                            />
-                        ) : (activeTabData.path.includes('res/values/') || activeTabData.path.includes('res\\values\\')) && activeTabData.name.endsWith('.xml') && viewMode === 'visual' ? (
-                            <ResourcesVisualEditor
-                                content={activeTabData.content}
-                                onChange={handleContentChange}
-                            />
-                        ) : activeTabData.path.includes('shared_prefs') && viewMode === 'visual' ? (
-                            <SharedPreferencesEditor
-                                content={activeTabData.content}
-                                onChange={handleContentChange}
-                            />
-                        ) : activeTabData.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? (
-                            <ImageViewer path={activeTabData.path} />
-                        ) : (activeTabData.path.includes('res/layout/') || activeTabData.path.includes('res\\layout\\')) && activeTabData.name.endsWith('.xml') && viewMode !== 'code' ? (
-                            <div className="h-full w-full flex">
-                                {viewMode === 'split' && (
-                                    <div className="flex-1 border-r border-[#3e3e42]">
-                                        <CodeEditor 
-                                            path={activeTabData.path}
-                                            content={activeTabData.content}
-                                            onChange={handleContentChange}
+                {openedTabs.length > 0 ? (
+                    openedTabs.map(tab => (
+                        <div key={tab.path} className={activeTab === tab.path ? "h-full w-full block" : "hidden"}>
+                            {tab.path === 'About' ? (
+                                <AboutView />
+                            ) : tab.path === 'Plugins' ? (
+                                <PluginsView />
+                            ) : tab.path === 'APKAnalyzer' ? (
+                                <AnalyzerView />
+                            ) : tab.name.endsWith('.db') || tab.name.endsWith('.sqlite') ? (
+                                <SqliteEditor path={tab.path} />
+                            ) : tab.name === 'AndroidManifest.xml' && viewMode === 'visual' ? (
+                                <ManifestVisualEditor 
+                                    content={tab.content}
+                                    onChange={(newContent) => handleContentChange(tab.path, newContent)}
+                                />
+                            ) : (tab.path.includes('res/values/') || tab.path.includes('res\\values\\')) && tab.name.endsWith('.xml') && viewMode === 'visual' ? (
+                                <ResourcesVisualEditor
+                                    content={tab.content}
+                                    onChange={(newContent) => handleContentChange(tab.path, newContent)}
+                                />
+                            ) : tab.path.includes('shared_prefs') && viewMode === 'visual' ? (
+                                <SharedPreferencesEditor
+                                    content={tab.content}
+                                    onChange={(newContent) => handleContentChange(tab.path, newContent)}
+                                />
+                            ) : tab.name.match(/\.(png|jpe?g|gif|webp|svg)$/i) ? (
+                                <ImageViewer path={tab.path} />
+                            ) : (tab.path.includes('res/layout/') || tab.path.includes('res\\layout\\')) && tab.name.endsWith('.xml') && viewMode !== 'code' ? (
+                                <div className="h-full w-full flex">
+                                    {viewMode === 'split' && (
+                                        <div className="flex-1 border-r border-[#3e3e42]">
+                                            <CodeEditor 
+                                                path={tab.path}
+                                                content={tab.content}
+                                                onChange={(newContent) => handleContentChange(tab.path, newContent)}
+                                            />
+                                        </div>
+                                    )}
+                                    <div className={viewMode === 'split' ? 'flex-1' : 'w-full h-full'}>
+                                        <LayoutVisualEditor
+                                            content={tab.content}
+                                            onChange={(newContent) => handleContentChange(tab.path, newContent)}
+                                            viewMode={viewMode}
                                         />
                                     </div>
-                                )}
-                                <div className={viewMode === 'split' ? 'flex-1' : 'w-full h-full'}>
-                                    <LayoutVisualEditor
-                                        content={activeTabData.content}
-                                        onChange={handleContentChange}
-                                        viewMode={viewMode}
-                                    />
                                 </div>
-                            </div>
-                        ) : (
-                            <CodeEditor 
-                                path={activeTabData.path}
-                                content={activeTabData.content}
-                                onChange={handleContentChange}
-                            />
-                        )}
-                    </>
+                            ) : (
+                                <CodeEditor 
+                                    path={tab.path}
+                                    content={tab.content}
+                                    onChange={(newContent) => handleContentChange(tab.path, newContent)}
+                                />
+                            )}
+                        </div>
+                    ))
                 ) : (
                     <div className="h-full flex items-center justify-center text-ide-text-muted">
                         <div className="text-center">

@@ -14,6 +14,7 @@ export interface IAIProvider {
     name: string;
 
     chat(messages: ChatMessage[]): Promise<AIResponse>;
+    chatStream?(messages: ChatMessage[], onChunk: (chunk: string) => void): Promise<AIResponse>;
     explainCode(code: string): Promise<string>;
     analyzeManifest(xml: string): Promise<string>;
     summarize(text: string): Promise<string>;

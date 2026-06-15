@@ -41,6 +41,71 @@ export class OpenAIProvider implements IAIProvider {
         };
     }
 
+    async chatStream(messages: ChatMessage[], onChunk: (chunk: string) => void): Promise<AIResponse> {
+        if (!this.apiKey) {
+            throw new Error("OpenAI API Key is not configured.");
+        }
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+                model: this.model,
+                messages: messages,
+                stream: true
+            })
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`OpenAI API error (${response.status}): ${errBody}`);
+        }
+
+        if (!response.body) throw new Error("No response body");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let fullContent = "";
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunkStr = decoder.decode(value, { stream: true });
+                const lines = chunkStr.split('\n').filter(line => line.trim() !== '');
+                
+                for (const line of lines) {
+                    if (line.replace(/^data: /, '').trim() === '[DONE]') {
+                        break;
+                    }
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.replace(/^data: /, ''));
+                            if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                                const text = data.choices[0].delta.content;
+                                fullContent += text;
+                                onChunk(text);
+                            }
+                        } catch (e) {
+                            // ignore parse errors for partial chunks
+                        }
+                    }
+                }
+            }
+        } finally {
+            reader.releaseLock();
+        }
+
+        return {
+            content: fullContent,
+            modelUsed: this.model
+        };
+    }
+
     async explainCode(code: string): Promise<string> {
         const res = await this.chat([
             { role: 'system', content: 'You are an expert Android developer. Explain the following code concisely.' },

@@ -1,9 +1,12 @@
 import { ChevronRight, ChevronDown, FolderClosed, FolderOpen, FileCode, FileJson, FileText, File, FileImage } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { List } from 'react-window';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { FileNode } from '../store/workspaceStore';
 import { BuildPanel } from './BuildPanel';
 import { SearchPanel } from './SearchPanel';
+import { EmulatorPanel } from './EmulatorPanel';
+import { SDKManagerPanel } from './SDKManagerPanel';
 
 const getFileIcon = (fileName: string) => {
     const lowerName = fileName.toLowerCase();
@@ -128,42 +131,37 @@ const ActionDialog = ({ actionDialog, onClose }: any) => {
     );
 };
 
-const FileTreeItem = ({ node, level, onContextMenu }: { node: FileNode, level: number, onContextMenu: (e: React.MouseEvent, node: FileNode) => void }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [children, setChildren] = useState<FileNode[]>([]);
-    const openTab = useWorkspaceStore(state => state.openTab);
+export const Sidebar = () => {
+    const { workspaceRoot, fileTree, setFileTree, activeSidebarTab, openTab } = useWorkspaceStore();
+    const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+    const [actionDialog, setActionDialog] = useState<ActionDialogState | null>(null);
+    const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+    const [dirCache, setDirCache] = useState<Record<string, FileNode[]>>({});
 
-    const fetchChildren = async () => {
-        try {
-            const response = await window.electronAPI.executeCommand('fs.readDir', node.path);
-            if (response.success) {
-                setChildren(response.data);
-            }
-        } catch (e) {
-            console.error("Failed to read dir", e);
-        }
-    };
-
-    useEffect(() => {
-        const handleRefresh = (e: Event) => {
-            const customEvent = e as CustomEvent;
-            if (customEvent.detail === node.path && isOpen) {
-                fetchChildren();
+    // Flatten tree for react-window
+    const flatTree = useMemo(() => {
+        const result: any[] = [];
+        
+        const traverse = (nodes: FileNode[], level: number) => {
+            for (const node of nodes) {
+                const isOpen = expandedPaths.has(node.path);
+                result.push({ node, level, isOpen });
+                if (isOpen && dirCache[node.path]) {
+                    traverse(dirCache[node.path], level + 1);
+                }
             }
         };
-        window.addEventListener('refresh-dir', handleRefresh);
-        return () => window.removeEventListener('refresh-dir', handleRefresh);
-    }, [node.path, isOpen]);
+        
+        traverse(fileTree, 0);
+        return result;
+    }, [fileTree, expandedPaths, dirCache]);
 
-    const toggleOpen = async () => {
+    const toggleOpen = async (node: FileNode) => {
         if (!node.isDirectory) {
-            // Check if it's a sqlite DB or Image
             if (node.name.match(/\.(db|sqlite|png|jpe?g|webp|svg|gif)$/i)) {
-                openTab(node.path, node.name, ''); // empty content
+                openTab(node.path, node.name, ''); 
                 return;
             }
-
-            // Open normal file
             try {
                 const response = await window.electronAPI.executeCommand('fs.readFile', node.path);
                 if (response.success) {
@@ -175,50 +173,59 @@ const FileTreeItem = ({ node, level, onContextMenu }: { node: FileNode, level: n
             return;
         }
 
-        if (!isOpen && children.length === 0) {
-            await fetchChildren();
+        const newExpanded = new Set(expandedPaths);
+        if (newExpanded.has(node.path)) {
+            newExpanded.delete(node.path);
+            setExpandedPaths(newExpanded);
+        } else {
+            if (!dirCache[node.path]) {
+                try {
+                    const response = await window.electronAPI.executeCommand('fs.readDir', node.path);
+                    if (response.success) {
+                        setDirCache(prev => ({ ...prev, [node.path]: response.data }));
+                    }
+                } catch (e) {
+                    console.error("Failed to read dir", e);
+                }
+            }
+            newExpanded.add(node.path);
+            setExpandedPaths(newExpanded);
         }
-        setIsOpen(!isOpen);
     };
-
-    return (
-        <div>
-            <div 
-                className="py-[3px] px-2 hover:bg-ide-hover cursor-pointer flex items-center gap-[6px]"
-                style={{ paddingLeft: `${level * 12 + 16}px` }}
-                onClick={toggleOpen}
-                onContextMenu={(e) => onContextMenu(e, node)}
-            >
-                {node.isDirectory ? (
-                    isOpen ? <ChevronDown size={16} className="text-ide-text-muted" /> : <ChevronRight size={16} className="text-ide-text-muted" />
-                ) : (
-                    <div className="w-4" /> // spacer
-                )}
-                
-                {node.isDirectory ? (
-                    isOpen ? <FolderOpen size={16} className="text-ide-text-muted" fill="currentColor" fillOpacity={0.2} /> : <FolderClosed size={16} className="text-ide-text-muted" fill="currentColor" fillOpacity={0.2} />
-                ) : (
-                    getFileIcon(node.name)
-                )}
-                
-                {node.name}
-            </div>
-            {isOpen && children.map(child => (
-                <FileTreeItem key={child.path} node={child} level={level + 1} onContextMenu={onContextMenu} />
-            ))}
-        </div>
-    );
-};
-
-export const Sidebar = () => {
-    const { workspaceRoot, fileTree, setFileTree, activeSidebarTab, openTab } = useWorkspaceStore();
-    const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-    const [actionDialog, setActionDialog] = useState<ActionDialogState | null>(null);
 
     const handleContextMenu = (e: React.MouseEvent, node: FileNode) => {
         e.preventDefault();
         e.stopPropagation();
         setContextMenu({ x: e.clientX, y: e.clientY, node });
+    };
+
+    // Row renderer for react-window v2
+    const RowComponent = ({ index, style }: { index: number, style: React.CSSProperties }) => {
+        const { node, level, isOpen } = flatTree[index];
+        return (
+            <div style={style}>
+                <div 
+                    className="py-[3px] px-2 hover:bg-ide-hover cursor-pointer flex items-center gap-[6px] h-full"
+                    style={{ paddingLeft: `${level * 12 + 16}px` }}
+                    onClick={() => toggleOpen(node)}
+                    onContextMenu={(e) => handleContextMenu(e, node)}
+                >
+                    {node.isDirectory ? (
+                        isOpen ? <ChevronDown size={16} className="text-ide-text-muted shrink-0" /> : <ChevronRight size={16} className="text-ide-text-muted shrink-0" />
+                    ) : (
+                        <div className="w-4 shrink-0" /> // spacer
+                    )}
+                    
+                    {node.isDirectory ? (
+                        isOpen ? <FolderOpen size={16} className="text-ide-text-muted shrink-0" fill="currentColor" fillOpacity={0.2} /> : <FolderClosed size={16} className="text-ide-text-muted shrink-0" fill="currentColor" fillOpacity={0.2} />
+                    ) : (
+                        getFileIcon(node.name)
+                    )}
+                    
+                    <span className="truncate">{node.name}</span>
+                </div>
+            </div>
+        );
     };
 
     const handleContextMenuAction = async (action: string) => {
@@ -283,10 +290,21 @@ export const Sidebar = () => {
         
         loadRoot();
 
-        const handleRefresh = (e: Event) => {
+        const handleRefresh = async (e: Event) => {
             const customEvent = e as CustomEvent;
-            if (customEvent.detail === workspaceRoot) {
+            const targetPath = customEvent.detail;
+            
+            if (targetPath === workspaceRoot) {
                 loadRoot();
+            } else if (expandedPaths.has(targetPath)) {
+                try {
+                    const response = await window.electronAPI.executeCommand('fs.readDir', targetPath);
+                    if (response.success) {
+                        setDirCache(prev => ({ ...prev, [targetPath]: response.data }));
+                    }
+                } catch (e) {
+                    console.error("Failed to read dir during refresh", e);
+                }
             }
         };
         window.addEventListener('refresh-dir', handleRefresh);
@@ -321,10 +339,14 @@ export const Sidebar = () => {
                     </div>
 
                     {/* File tree */}
-                    <div className="flex-1 overflow-y-auto font-mono text-[13px]">
-                        {fileTree.map(node => (
-                            <FileTreeItem key={node.path} node={node} level={0} onContextMenu={handleContextMenu} />
-                        ))}
+                    <div className="flex-1 overflow-hidden font-mono text-[13px]">
+                        <List
+                            rowCount={flatTree.length}
+                            rowHeight={24}
+                            rowComponent={RowComponent}
+                            rowProps={{} as any}
+                            style={{ height: '100%', width: '100%', overflowX: 'hidden' }}
+                        />
                     </div>
                 </>
             )}
@@ -335,6 +357,14 @@ export const Sidebar = () => {
 
             {activeSidebarTab === 'build' && (
                 <BuildPanel />
+            )}
+
+            {activeSidebarTab === 'device' && (
+                <EmulatorPanel />
+            )}
+
+            {activeSidebarTab === 'sdk' && (
+                <SDKManagerPanel />
             )}
 
             {contextMenu && (

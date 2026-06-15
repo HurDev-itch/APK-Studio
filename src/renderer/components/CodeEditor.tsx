@@ -41,36 +41,24 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ path, content, onChange 
         const model = editorRef.current.getModel();
         if (!model) return;
 
-        try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(xmlStr, "text/xml");
-            const parseError = doc.getElementsByTagName("parsererror");
+        // Use Web Worker to avoid blocking UI thread
+        const worker = new Worker(new URL('../workers/xml-parser.worker.ts', import.meta.url), { type: 'module' });
+        
+        worker.onmessage = (e) => {
+            const { success, path: resPath, errors } = e.data;
+            if (!success || resPath !== path) return;
             
-            const markers: any[] = [];
-            
-            if (parseError.length > 0) {
-                // Extract error message
-                const errorText = parseError[0].textContent || "XML Parsing Error";
-                // Approximate line number extraction (basic)
-                const lineMatch = errorText.match(/line number (\d+)/i);
-                const colMatch = errorText.match(/column (\d+)/i);
-                
-                const line = lineMatch ? parseInt(lineMatch[1]) : 1;
-                const col = colMatch ? parseInt(colMatch[1]) : 1;
-
-                markers.push({
-                    severity: monaco.MarkerSeverity.Error,
-                    message: errorText.split('\n')[0] || "Invalid XML syntax",
-                    startLineNumber: line,
-                    startColumn: Math.max(1, col - 5),
-                    endLineNumber: line,
-                    endColumn: col + 5,
-                });
-            }
+            const markers: any[] = errors.map((err: any) => ({
+                severity: monaco.MarkerSeverity.Error,
+                message: err.message,
+                startLineNumber: err.line,
+                startColumn: err.col,
+                endLineNumber: err.line,
+                endColumn: err.col + 5,
+            }));
             
             monaco.editor.setModelMarkers(model, 'xml-validator', markers);
             
-            // Sync to global problems store
             if (markers.length > 0) {
                 setProblems('XML Validator', path, markers.map(m => ({
                     message: m.message,
@@ -81,9 +69,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ path, content, onChange 
             } else {
                 clearProblems('XML Validator', path);
             }
-        } catch (e) {
-            // Ignore if dom parser fails entirely
-        }
+            
+            worker.terminate();
+        };
+
+        worker.postMessage({ xmlStr, path });
     };
 
     const handleEditorDidMount = (editor: any) => {
