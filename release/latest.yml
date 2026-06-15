@@ -1,0 +1,8 @@
+version: 3.0.0
+files:
+  - url: APK-Studio-3.0.0-win-x64.exe
+    sha512: J3aW4GHZZy7BqUoQqlGeUln4I58VE1/2kU5Igmoqitw/qArWaa4PaUxr6rcxDuax4qT3yh0S9n7j/VyrD1AUOA==
+    size: 92748427
+path: APK-Studio-3.0.0-win-x64.exe
+sha512: J3aW4GHZZy7BqUoQqlGeUln4I58VE1/2kU5Igmoqitw/qArWaa4PaUxr6rcxDuax4qT3yh0S9n7j/VyrD1AUOA==
+releaseDate: '2026-06-15T22:16:58.256Z'

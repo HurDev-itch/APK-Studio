@@ -1,0 +1,27 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.apkstudio.app
+productName: APK Studio
+copyright: Copyright © 2026
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+publish:
+  - provider: github
+    owner: HurDev-itch
+    repo: APK-Studio
+win:
+  target:
+    - nsis
+    - portable
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+portable:
+  requestExecutionLevel: user
+  artifactName: APK Studio Portable ${version}.exe
+asarUnpack:
+  - node_modules/better-sqlite3
+files: []
+electronVersion: 33.4.11
